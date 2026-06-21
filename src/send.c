@@ -4,14 +4,14 @@
 #include <stdint.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
 
-#define SPORT 5132
+#include "scanner.h"
 
 // calculate Internet Checksum (RFC 1071 accurate)
 uint16_t checksum(uint16_t *addr, int ct) {
@@ -31,8 +31,8 @@ uint16_t checksum(uint16_t *addr, int ct) {
     return (uint16_t)~sum; 
 }
 
-// get local ip in (!) Network Byte Order
-uint32_t get_local_ip() {
+// get local ip in Network Byte Order
+uint32_t get_local_ip(void) {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) return 0;
 
@@ -94,7 +94,7 @@ int set_tcphdr(char *hbuf, uint16_t dport) {
     struct iphdr *iph = (struct iphdr *)hbuf;
     struct tcphdr *tcph = (struct tcphdr *)(hbuf + sizeof(struct iphdr));
 
-    tcph->source = htons(SPORT);
+    tcph->source = htons(SRC_PORT);
     tcph->dest = htons(dport);
 
     tcph->seq = htonl(167273);
@@ -132,6 +132,7 @@ int buildp(char *pbuf, uint32_t daddr, int dport) {
     return 0;
 }
 
+// send packet in [pbuf] with length [packet_len] via [tx_fd]
 int send_packet(int tx_fd, char *pbuf, int packet_len) {
     struct sockaddr_in dst;
     struct iphdr *iph = (struct iphdr *)pbuf;
@@ -149,75 +150,30 @@ int send_packet(int tx_fd, char *pbuf, int packet_len) {
     return 0;
 }
 
-typedef enum {
-    PORT_OPEN,
-    PORT_CLOSED,
-    PORT_FILTERED,
-} pstatus_t;
-
-int recv_packet(int rx_fd, uint32_t target_addr, int myport) {
-    char rx_buf[1 << 16];
-    struct sockaddr_in from;
-    socklen_t fromlen = sizeof(from);
-    
-    int recvd = recvfrom(rx_fd, rx_buf, sizeof(rx_buf), 0, (struct sockaddr *)&from, &fromlen);
-    if (recvd < 0) {
-        perror("no data to recv");
-        return -2;
-    }
-
-    struct iphdr *iph = (struct iphdr *)rx_buf;
-    struct tcphdr *tcph = (struct tcphdr *)(rx_buf + (iph->ihl * 4));
-
-    if (iph->saddr == target_addr && ntohs(tcph->dest) == myport) {
-        if (tcph->syn && tcph->ack) {
-            return PORT_OPEN;
-        }
-        if (tcph->rst) {
-            return PORT_CLOSED;
-        }
-    }
-
-    return -2;
-}
-
-int main() {
-    // transmit socket / -> server 
+int init_tx(void) {
     int tx_fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-    // recv socket / <- server 
-    int rx_fd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
+    if (tx_fd < 0) {
+        perror("can't init transmit socket");
+        return -1;
+    }
 
     int optv = 1;
     setsockopt(tx_fd, IPPROTO_IP, IP_HDRINCL, &optv, sizeof(optv));
 
-    int pc_len = sizeof(struct iphdr) + sizeof(struct tcphdr);
-    char *packet = (char *)calloc(1, pc_len);
+    return tx_fd;
+}
 
-    char *daddr = "185.188.181.17"; uint32_t raw_daddr;
+int get_plen(void) {
+    return sizeof(struct iphdr) + sizeof(struct tcphdr);
+}
+
+// convert ip addr string to uint32_t inet view
+uint32_t ipchar2raw(char *daddr) {
+    uint32_t raw_daddr;
     if (inet_pton(AF_INET, daddr, &raw_daddr) <= 0) {
         perror("invalid destination ip address");
         return -1;
     }
 
-    if (buildp(packet, raw_daddr, 80) < 0) {
-        perror("can't build packet to transmit");
-        return -1;
-    }
-
-    send_packet(tx_fd, packet, pc_len);
-    while (1) {
-        int status = recv_packet(rx_fd, raw_daddr, SPORT);
-        
-        if (status == PORT_OPEN) {
-            printf("Port is OPEN!\n");
-            break;
-        } else if (status == PORT_CLOSED) {
-            printf("Port is CLOSED!\n");
-            break;
-        }
-    }
-
-    free(packet); close(tx_fd); close(rx_fd);
-
-    return 0;
+    return raw_daddr;
 }
