@@ -40,6 +40,7 @@ uint32_t get_local_ip(void) {
     memset(&lo, 0, sizeof(lo));
     lo.sin_family = AF_INET;
     lo.sin_addr.s_addr = inet_addr("8.8.8.8"); // google DNS:53
+    // lo.sin_addr.s_addr = inet_addr("192.168.100.2");
     lo.sin_port = htons(53);
 
     if (connect(sock, (struct sockaddr *)&lo, sizeof(lo)) < 0) {
@@ -105,7 +106,7 @@ int set_tcphdr(char *hbuf, uint16_t dport) {
     tcph->check = 0;
     tcph->urg_ptr = 0;
 
-    pseudohdr psh;
+    pseudohdr psh = {0};
     psh.saddr = iph->saddr;
     psh.daddr = iph->daddr;
     psh.proto = IPPROTO_TCP;
@@ -143,8 +144,6 @@ int send_packet(int tx_fd, char *pbuf, int packet_len) {
     if (sent < 0) {
         perror("packet send failed");
         return -1;
-    } else {
-        printf("sent %d bytes\n", sent);
     }
 
     return 0;
