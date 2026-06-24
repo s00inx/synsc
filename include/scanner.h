@@ -5,7 +5,7 @@
 
 #define SRC_PORT 5132
 // count of ports to scan (0 - PORT_COUNT); for test i scan first 100 ports, but default val is 65536
-#define PORT_COUNT 100
+#define PORT_COUNT 65536
 // max sliding window size (500 active packets)
 #define MAX_WINDOW 50
 // timeout for conn
@@ -33,9 +33,9 @@ typedef struct port_info_t {
     port_status_t   verdict;
     struct timespec sent_time;
 } port_info_t;
-extern port_info_t ports[PORT_COUNT];
 
-void run_scan(uint32_t daddr, int rx_fd, int tx_fd);
+
+int scan(uint32_t raw_daddr, char* daddr);
 
 int filter_packet(char *rx_buf, int rxbuflen, int rx_fd, uint32_t target_addr, int s_port, uint16_t *resp_port);
 int init_rx(void);

@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-port_info_t ports[PORT_COUNT];
-
 // create timer fd and add to epoll interest list
 int setup_timerfd(int epoll_fd) {
     int timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
@@ -34,7 +32,7 @@ int setup_timerfd(int epoll_fd) {
 }
 
 // run nonblocking scan
-void run_scan(uint32_t daddr, int rx_fd, int tx_fd) {
+void run_scan(uint32_t daddr, int rx_fd, int tx_fd, port_info_t *ports) {
     int epoll_fd = epoll_create1(0);
 
     if (epoll_fd < 0) {
@@ -83,8 +81,6 @@ void run_scan(uint32_t daddr, int rx_fd, int tx_fd) {
                     ports[rp].state = PORT_DONE; ports[rp].verdict = verdict;
 
                     activep--;
-                    printf("port %-3d status: <%s>\n", rp, ports[rp].verdict == PORT_OPEN ? "OPEN" : "CLOSED");
-                    fflush(stdout);
                     }
                 }
         
@@ -106,9 +102,6 @@ void run_scan(uint32_t daddr, int rx_fd, int tx_fd) {
                             ports[p].state = PORT_DONE;
                             ports[p].verdict = PORT_FILTERED;
                             activep--;
-
-                            printf("port %-3d status: <FILTERED>\n", p);
-                            fflush(stdout);
                         }
                     }
                     // move left bound if it is done
@@ -122,4 +115,34 @@ void run_scan(uint32_t daddr, int rx_fd, int tx_fd) {
 
     free(rx_buf); free(tx_buf);
     close(epoll_fd); close(timer_fd);
+}
+
+// scan addr
+int scan(uint32_t raw_daddr, char* daddr) {
+    int tx_fd = init_tx(); int rx_fd = init_rx();    
+    port_info_t ports[PORT_COUNT] = {0};
+
+    run_scan(raw_daddr, rx_fd, tx_fd, ports);
+
+    printf("scan results for %s\n", daddr);
+    printf("port | status\n");
+    int fportsct = 0, openct = 0, closedct = 0;
+
+    for (int i = 0; i < PORT_COUNT; i++) {
+        if (ports[i].verdict == PORT_OPEN) {
+            printf("%-5d| open\n", i);
+            openct++;
+        }
+        else if (ports[i].verdict == PORT_CLOSED) {
+            printf("%-5d| closed\n", i);
+            closedct++;
+        } else {
+            fportsct++;
+        }
+    }
+
+    printf("opened: %d, closed: %d, filtered: %d\n", openct, closedct, fportsct);
+    close(tx_fd); close(rx_fd);
+
+    return 0;
 }
