@@ -7,9 +7,9 @@
 // count of ports to scan (0 - PORT_COUNT); for test i scan first 100 ports, but default val is 65536
 #define PORT_COUNT 65536
 // max sliding window size (500 active packets)
-#define MAX_WINDOW 50
+#define MAX_WINDOW 1024
 // timeout for conn
-#define TIMEOUT_MS 1000
+#define TIMEOUT_MS 250
 
 // enums for port lifecycle (sent -> wait for resp -> done)
 typedef enum {

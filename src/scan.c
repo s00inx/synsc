@@ -53,7 +53,7 @@ void run_scan(uint32_t daddr, int rx_fd, int tx_fd, port_info_t *ports) {
     int packet_len = get_plen();
     // buffers for recv and trasmit
     char *tx_buf = calloc(1, packet_len);
-    char *rx_buf = malloc(1 << 16); // 2 bytes
+    char *rx_buf = calloc(1, 1 << 16); // 2 bytes
 
     // struct for receiving epoll events
     struct epoll_event events[10];
@@ -86,10 +86,10 @@ void run_scan(uint32_t daddr, int rx_fd, int tx_fd, port_info_t *ports) {
         
             } else if (events[i].data.fd == timer_fd) {
                 // reset timer (read 8 bytes)
-                uint64_t rstt;
+                uint64_t rstt = 0;
                 read(timer_fd, &rstt, sizeof(rstt));
 
-                struct timespec now;
+                struct timespec now = {0};
                 clock_gettime(CLOCK_MONOTONIC, &now);
 
                 for (int p = last_unclosed; p < next_tosend; p++) {
@@ -134,14 +134,13 @@ int scan(uint32_t raw_daddr, char* daddr) {
             openct++;
         }
         else if (ports[i].verdict == PORT_CLOSED) {
-            printf("%-5d| closed\n", i);
             closedct++;
         } else {
             fportsct++;
         }
     }
 
-    printf("opened: %d, closed: %d, filtered: %d\n", openct, closedct, fportsct);
+    printf("\nopened: %d, closed: %d, filtered: %d\n", openct, closedct, fportsct);
     close(tx_fd); close(rx_fd);
 
     return 0;
