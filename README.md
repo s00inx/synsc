@@ -15,7 +15,7 @@ Operating via `SOCK_RAW` (`IPPROTO_TCP`) requires bypassing the kernel's transpo
 #### Single-Threaded I/O Multiplexing via Epoll
 To avoid multi-threading, the engine utilizes an asynchronous event loop:
 * **Unified Event Interest List:** network events from the raw receive socket (`rx_fd`) and time-based events from a kernel timer (`timerfd`) are managed within a single `epoll` instance.
-* **$O(1)$ Event Handling:** leveraging `epoll`'s readiness list mechanism to handle thousands of concurrent port states efficiently, maintaining stable performance regardless of the target port range.
+* **O(1) Event Handling:** leveraging `epoll`'s readiness list mechanism to handle thousands of concurrent port states efficiently, maintaining stable performance regardless of the target port range.
 
 #### Flow Control & State Tracking via Sliding Window
 Blasting thousands of raw packets simultaneously causes network congestion and local socket buffer saturation; to mitigate this, a **sliding window** mechanism was implemented:
@@ -32,7 +32,7 @@ Blasting thousands of raw packets simultaneously causes network congestion and l
 ## Quick Start
 
 ### Requirements
-Linux OS (kernel with `epoll` and `timerfd` support), `gcc` compiler, `make` utility
+Linux OS (kernel with `epoll` and `timerfd` support), `gcc` compiler, `make` utility.
 
 ### Installation
 ```bash 
